@@ -2,6 +2,14 @@ export type Tool<S extends DataType, T extends DataType, P extends ToolParameter
   P extends ToolParameters ? 
    ToolWithParams<S, T, P> : BaseTool<S, T>;
 
+export type ElementWiseTool<S extends DataType, T extends DataType, P extends ToolParameters | undefined = undefined> = Tool<S, T, P> & {
+  isElementWise: true,
+};
+
+export function isElementWiseTool(tool: Tool<any, any, any>): tool is ElementWiseTool<any, any, any> {
+  return (tool as ElementWiseTool<any, any>).isElementWise !== undefined;
+}
+
 type ToolWithParams<S extends DataType, T extends DataType, P extends ToolParameters> = BaseTool<S, T> & {
   params: P,
 }
@@ -40,7 +48,7 @@ export type TypeName<T extends DataType> =
     T extends boolean ? 'boolean' :
     T extends number ? 'number' :
     // T extends Array<infer S> ? ListTypeName<S> : any;
-    T extends Array<infer S> ? 'list' : 'json/any';
+    T extends any[] ? 'list' : 'json/any';
 
 export interface ListDataType<T extends DataType> extends Array<Data<T>> {
 
@@ -50,7 +58,36 @@ export interface ListDataType<T extends DataType> extends Array<Data<T>> {
 
 export type ToolParameterType = string | boolean;
 
-export class Data<T extends DataType> {
+export interface Data<T extends DataType> {
+  get(): T;
+  getType(): TypeName<T>;
+  transformedWith<OutputType extends DataType>(tool: Tool<T, OutputType>): Data<OutputType>;
+}
+
+export class DataBuilder {
+
+  static from<T extends DataType>(data: T): Data<any> {
+    if (typeof data === 'string') {
+      return new UnitData<string>(data, 'string');
+    } else if (typeof data === 'number') {
+      return new UnitData<number>(data, 'number');
+    } else if (Array.isArray(data)) {
+      return new ListData(data);
+    } else {
+      return new UnitData<unknown>(data, 'json/any');
+    }
+  }
+
+  // static from<T extends DataType>(data: T, type: TypeName<T>): Data<T> {
+  //   if (Array.isArray(data)) {
+  //     return (new ListData(data) as any);
+  //   } else {
+  //     return new UnitData(data, type);
+  //   }
+  // }
+}
+
+export class UnitData<T extends DataType> implements Data<T> {
   data: T;
   type: TypeName<T>;
 
@@ -59,46 +96,68 @@ export class Data<T extends DataType> {
     this.type = type;
   }
 
-  static from<T extends DataType>(data: T, type: TypeName<T>): Data<T> {
-    if (Array.isArray(data)) {
-      return (new ListData(data, 'list') as any);
-    } else {
-      return new Data(data, type);
-    }
+  get(): T {
+    return this.data;
+  }
+
+  getType(): TypeName<T> {
+    return this.type;
   }
 
   transformedWith<OutputType extends DataType>(tool: Tool<T, OutputType>): Data<OutputType> {
-    const transformedData = tool.transform(this.data);
-    return new Data(transformedData, tool.outputType);
+    const transformedData = tool.transform(this.get());
+    console.log('transformed data:');
+    console.log(transformedData);
+    return DataBuilder.from(transformedData);
   }
 }
 
-class SingleData<Type extends SingleDataType> extends Data<Type> {
-}
+export class ListData implements Data<any[]> {
+  children: Data<any>[];
+  childrenTypes: Set<TypeName<any>>;
 
-type Flatten<Type> = Type extends Array<infer Item> ? Item : Type;
-
-export class ListData<ChildrenType extends DataType> extends Data<ListDataType<ChildrenType>> {
-  childrenTypes: Set<TypeName<ChildrenType>>;
-
-  constructor(data: Array<Data<ChildrenType>>, type: TypeName<ListDataType<ChildrenType>>) {
-    super(data, type);
+  constructor(rawChildren: any[]) {
     this.childrenTypes = new Set();
-    for (var child of data) {
-      this.childrenTypes.add(child.type);
+    const children = [];
+    console.log(rawChildren);
+    for (var child of rawChildren) {
+      if (child instanceof UnitData || child instanceof ListData) {
+        this.childrenTypes.add(child.getType());
+        children.push(child);
+      } else {
+        const childData = DataBuilder.from(child);
+        this.childrenTypes.add(childData.getType());
+        children.push(childData);
+      }
     }
+    this.children = children;
+    console.log('constructred');
   }
 
-  childrenTransformedWith<InputType extends ChildrenType, OutputType extends DataType>(tool: Tool<InputType, OutputType>): ListData<ChildrenType | OutputType> {
-    const transformFunction = (child: Data<ChildrenType>): Data<ChildrenType> | Data<OutputType> => {
-      if (tool.inputType === child.type) {
-        return Data.from(tool.transform(child.data as InputType), tool.outputType);
+  get(): any[] {
+    return this.children.map((child) => child.get());
+  }
+
+  getType(): TypeName<any[]> {
+    return 'list';
+  }
+
+  transformedWith<OutputType extends DataType>(tool: Tool<any[], OutputType>): Data<OutputType> {
+    const transformedData = tool.transform(this.get());
+    return DataBuilder.from(transformedData);
+  }
+
+  childrenTransformedWith<InputType extends DataType, OutputType extends DataType>(tool: Tool<InputType, OutputType>): ListData {
+    const transformFunction = (child: Data<any>): Data<any> | Data<OutputType> => {
+      if (tool.inputType === child.getType()) {
+        console.log()
+        return DataBuilder.from(tool.transform(child.get() as InputType));
       } else {
         return child;
       }
     }
-    const newData = this.data.map(transformFunction);
-    return new ListData<ChildrenType | OutputType>(newData, 'list');
+    const newData = this.children.map(transformFunction);
+    return new ListData(newData);
   }
 }
 

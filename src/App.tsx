@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import './App.css';
 import { Tools } from './tools/tools';
-import { Tool, DataType, TypeName, Data } from './tools/types';
-import { Box, Button, Container, createTheme, CssBaseline, Divider, Drawer, Grid, Input, ListItem, ListItemIcon, ListItemText, TextField, ThemeProvider, Tooltip, Typography, useTheme } from '@material-ui/core';
+import { Tool, TypeName, Data, isElementWiseTool, ElementWiseTool, ListData, DataBuilder } from './tools/types';
+import { Box, Button, Container, createTheme, CssBaseline, Divider, Drawer, Grid, TextField, ThemeProvider, Tooltip, Typography } from '@material-ui/core';
 import ToolListItem from './components/ToolListItem';
 import ReactJson from 'react-json-view';
 import { truncate } from './tools/string-utils';
 import { stringify } from './tools/string-tools';
+import assert from 'assert';
 
 const theme = createTheme({
   palette: {
@@ -47,40 +48,48 @@ class TransformationException {
 }
 
 const App: React.FC = () => {
-  const initialValue = useMemo(() => new Data('', 'string'), []);
+  const initialData = useMemo(() => DataBuilder.from(''), []);
   const [toolHistory, setToolHistory] = useState<Tool<any, any, any>[]>([]);
 
-  const [currentStepIndex, currentValue]: any = useMemo(() => {
+  const [currentStepIndex, currentData] = useMemo<[number, Data<any>]>(() => {
     try {
-      const value = toolHistory.reduce((previousValue, currValue, currentIndex) => {
+      const value = toolHistory.reduce((prevValue, currTool, currentIndex) => {
         try {
-          return currValue.transform(previousValue);
+          console.log(currTool.name);
+          console.log(currTool);
+          if (isElementWiseTool(currTool)) {
+            console.log('this is an element wise tool');
+            return (prevValue as ListData).childrenTransformedWith(currTool);
+          } else {
+            assert(currTool.inputType === prevValue.getType());
+            return prevValue.transformedWith(currTool);
+          }
         } catch (e) {
-          throw new TransformationException(currentIndex - 1, currValue);
+          throw new TransformationException(currentIndex - 1, prevValue);
         }
-      }, initialValue);
+      }, initialData as Data<any>);
       return [toolHistory.length - 1, value];
     } catch (e) {
       const exception = e as TransformationException;
       return [exception.index, exception.value];
     }
 
-  }, [initialValue, toolHistory]);
+  }, [initialData, toolHistory]);
 
   const latestTool = useMemo(() => {
     return toolHistory[currentStepIndex];
   }, [toolHistory, currentStepIndex]);
 
-  const fakeStep = useMemo(() => typeof (currentValue) === 'string' ? null : stringify, [currentValue]);
+  const fakeStep = useMemo(() => typeof (currentData) === 'string' ? null : stringify, [currentData]);
   const fullHistory = [...toolHistory];
 
-  if (fakeStep !== null)
-    fullHistory.splice(currentStepIndex + 1, 0, fakeStep);
+  // if (fakeStep !== null)
+    // fullHistory.splice(currentStepIndex + 1, 0, fakeStep);
 
 
-  const text: any = useMemo(() => {
-    return stringify.transform(currentValue);
-  }, [currentValue]);
+  const text = useMemo(() => {
+    return currentData.transformedWith(stringify).get();
+  }, [currentData]);
 
   const addTool = (tool: Tool<any, any>) => {
     const newToolHistory = [...toolHistory];
@@ -124,10 +133,8 @@ const App: React.FC = () => {
       toolsByCategory.set('item tools', tools.filter((tool) => tool.inputType === 'string').map((tool) => {
         return {
           ...tool,
-          inputType: 'list',
-          outputType: 'list',
-
-        }
+          isElementWise: true,
+        } as ElementWiseTool<any, any>;
       }));
     return toolsByCategory;
   }
@@ -197,7 +204,7 @@ const App: React.FC = () => {
                 </form>
               </Grid>
               <Grid item xs={6}>
-                <ReactJson src={currentValue} theme={{
+                <ReactJson src={currentData} theme={{
                   base00: "1e1e3f",
                   base01: "43d426",
                   base02: "f1d000",

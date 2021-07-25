@@ -32,7 +32,7 @@ export const stringify: Tool<any, string> = {
 
 const ReplaceParameters = {
   findRegex: {
-    name: 'Find regex',
+    name: 'Find expression',
     value: '',
     required: true,
   },

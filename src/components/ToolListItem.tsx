@@ -32,12 +32,12 @@ const ToolListItem: React.FC<ToolListItemProps<any, any>> = (props) => {
         primary={tool.name + ' ' + ((tool as any).params)}
         secondary={
           <React.Fragment>
-              
-          {/* {tool.inputType + ' > ' + tool.outputType} */}
-              {/* <br/> */}
-              {tool.getHistoryDescription()}
-            </React.Fragment>
-          } />
+
+            {/* {tool.inputType + ' > ' + tool.outputType} */}
+            {/* <br/> */}
+            {tool.getHistoryDescription()}
+          </React.Fragment>
+        } />
     </ListItem>
     {isError && <Alert severity="error">This doesn't work!</Alert>}
     {params &&
@@ -45,8 +45,8 @@ const ToolListItem: React.FC<ToolListItemProps<any, any>> = (props) => {
         <Typography variant='overline'>Parameters</Typography>
         <form onSubmit={(event) => {
           event.preventDefault();
-        return updateParams();
-      }} autoComplete='off'>
+          return updateParams();
+        }} autoComplete='off'>
           {Object.keys(params).map((key, index) => {
             const param = params[key];
             return <TextField
@@ -71,7 +71,7 @@ const ToolListItem: React.FC<ToolListItemProps<any, any>> = (props) => {
           }
           )}
         </form>
-        <Button onClick={(event) => {
+        <Button type='submit' onClick={(event) => {
           updateParams();
         }}>
           Apply
