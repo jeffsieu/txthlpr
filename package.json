@@ -1,6 +1,7 @@
 {
   "name": "txthlpr",
   "version": "1.0.0",
+  "homepage": "https://jeffsieu.github.io/txthlpr/",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.4.0",
