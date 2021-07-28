@@ -1,11 +1,13 @@
 import { convertToJson } from './json-tools';
-import { stringToList, listToString } from './list-tools';
+import { stringToList, listToString, listFilter } from './list-tools';
+import { manipulateNumber, stringToNumber } from './number-tools';
 import { trim, stringify, replace } from './string-tools';
 
-const StringTools = [trim, stringify, replace];
-const JsonTools = [convertToJson];
-const ListTools = [stringToList, listToString];
+const stringTools = [trim, stringify, replace];
+const jsonTools = [convertToJson];
+const listTools = [stringToList, listToString, listFilter];
+const numberTools = [stringToNumber, manipulateNumber];
 
-const Tools = [...StringTools, ...JsonTools, ...ListTools];
+const tools = [...stringTools, ...jsonTools, ...listTools, ...numberTools];
 
-export { StringTools, JsonTools, Tools }
+export { tools }

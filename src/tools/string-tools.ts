@@ -10,52 +10,56 @@ export const trim: Tool<string, string> = {
   inputType: 'string',
   outputType: 'string',
   getHistoryDescription: function() {
-    return 'nice';
+    return 'Trimmed whitespace';
   },
 }
 
 export const stringify: Tool<any, string> = {
   name: 'Stringify',
-  description: 'Converts the input into a string.',
+  description: 'Converts the given input into a string.',
   transform: (input: any) => {
     if (Array.isArray(input)) {
-      return input.join('\n');
+      return '[\n  ' + input.join(',\n  ') + ',\n]';
+    } else if (typeof input === 'object' && input !== undefined) {
+      return JSON.stringify(input);
     }
     return input.toString();
   },
-  inputType: 'json/any',
+  inputType: 'any',
   outputType: 'string',
   getHistoryDescription: function() {
-    return 'nice';
+    return 'Converted to string';
   },
 }
 
-const ReplaceParameters = {
+const replaceParameters = {
   findRegex: {
     name: 'Find expression',
     value: '',
     required: true,
+    valueType: 'string',
+    choiceType: 'freeResponse',
   },
-  replaceRegex: 
-  {
+  replaceRegex: {
     name: 'Replace expression',
     value: '',
     required: true,
-  },
-};
+    valueType: 'string',
+    choiceType: 'freeResponse',
+  }
+} as const;
 
-export const replace: Tool<string, string, typeof ReplaceParameters> = {
+export const replace: Tool<string, string, typeof replaceParameters> = {
   name: 'Replace',
   description: 'Replaces the input into a string.',
   transform: function (input: string) {
     const { findRegex, replaceRegex } = this.params;
     const output = input.replaceAll(findRegex.value, replaceRegex.value);
-    console.log(`${input} ${output}`);
     return output;
   },
   inputType: 'string',
   outputType: 'string',
-  params: ReplaceParameters,
+  params: replaceParameters,
   getHistoryDescription: function() {
     return `Replace ${truncate(this.params.findRegex.value)} with ${truncate(this.params.findRegex.value)}`;
   },

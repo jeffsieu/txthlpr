@@ -1,3 +1,5 @@
+import { strict as assert } from "assert";
+
 export type Tool<S extends DataType, T extends DataType, P extends ToolParameters | undefined = undefined> = 
   P extends ToolParameters ? 
    ToolWithParams<S, T, P> : BaseTool<S, T>;
@@ -31,10 +33,37 @@ export type ToolParameters = {
   [key: string]: ToolParameter<any>,
 }
 
-export type ToolParameter<Type extends ToolParameterType> = {
+/// So that the app knows how to handle nested tools
+export type ToolWithTypePath<S extends DataType, T extends DataType, P extends ToolParameters | undefined = undefined> = Tool<S, T, P> & {
+  typePath: TypeName<any>[],
+}
+
+export type ToolParameter<Type extends ToolParameterType> = ToolValueParameter<Type> | ToolOptionParameter<Type, readonly string[]>;
+
+type BaseToolParameter<Type extends ToolParameterType> = {
   name: string,
   value: Type,
   required: boolean,
+}
+
+type ToolValueParameter<Type extends ToolParameterType> = BaseToolParameter<Type> & {
+  value: Type,
+  valueType: TypeName<Type>,
+  choiceType: 'freeResponse',
+};
+
+type ToolOptionParameter<Type extends ToolParameterType, ToolOption extends readonly string[]> = BaseToolParameter<Type> & {
+  value: ElementType<ToolOption>,
+  choiceType: 'multipleChoice',
+  choices: ToolOption,
+}
+
+// type FreeResponseParamType = 'freeResponse';
+// type MultipleChoiceParamType = 'multipleChoice';
+// export type ToolParameterChoiceType = FreeResponseParamType | MultipleChoiceParamType;
+
+export function isMultipleChoiceParam<Type extends ToolParameterType>(param: ToolParameter<Type>): param is ToolOptionParameter<Type, readonly string[]> {
+  return param.choiceType === 'multipleChoice';
 }
 
 export type json = any;
@@ -47,23 +76,36 @@ export type TypeName<T extends DataType> =
     T extends string ? 'string' :
     T extends boolean ? 'boolean' :
     T extends number ? 'number' :
-    // T extends Array<infer S> ? ListTypeName<S> : any;
-    T extends any[] ? 'list' : 'json/any';
+    T extends any[] ? 'list' : 'json' | 'any';
 
 export interface ListDataType<T extends DataType> extends Array<Data<T>> {
-
 }
 
-// export type ListTypeName<T> = T extends DataType ? `List${TypeName<T>}` : 'List<any>';
+export type ElementType < T extends ReadonlyArray < unknown > > = T extends ReadonlyArray<
+  infer ElementType
+>
+  ? ElementType
+  : never
+
+export type SelfToolMap = Map<string, ToolMapValue>;
+
+export type ToolMap = {
+  self: SelfToolMap,
+  type: TypeName<any>,
+  children?: ChildrenToolMap,
+}
+
+export type ToolMapValue = Tool<any, any>[];
+
+export type ChildrenToolMap = Map<string, ToolMap>;
 
 export type ToolParameterType = string | boolean;
 
 export interface Data<T extends DataType> {
   get(): T;
   getType(): TypeName<T>;
-  transformedWith<OutputType extends DataType>(tool: Tool<T, OutputType>): Data<OutputType>;
+  transformedWith<OutputType extends DataType>(tool: ToolWithTypePath<T, OutputType>): Data<OutputType>;
 }
-
 export class DataBuilder {
 
   static from<T extends DataType>(data: T): Data<any> {
@@ -73,8 +115,10 @@ export class DataBuilder {
       return new UnitData<number>(data, 'number');
     } else if (Array.isArray(data)) {
       return new ListData(data);
+    } else if (typeof data === 'object' && data !== null) {
+      return new JsonData(data);
     } else {
-      return new UnitData<unknown>(data, 'json/any');
+      return new UnitData<unknown>(data, 'any');
     }
   }
 
@@ -104,10 +148,8 @@ export class UnitData<T extends DataType> implements Data<T> {
     return this.type;
   }
 
-  transformedWith<OutputType extends DataType>(tool: Tool<T, OutputType>): Data<OutputType> {
+  transformedWith<OutputType extends DataType>(tool: ToolWithTypePath<T, OutputType>): Data<OutputType> {
     const transformedData = tool.transform(this.get());
-    console.log('transformed data:');
-    console.log(transformedData);
     return DataBuilder.from(transformedData);
   }
 }
@@ -119,8 +161,7 @@ export class ListData implements Data<any[]> {
   constructor(rawChildren: any[]) {
     this.childrenTypes = new Set();
     const children = [];
-    console.log(rawChildren);
-    for (var child of rawChildren) {
+    for (let child of rawChildren) {
       if (child instanceof UnitData || child instanceof ListData) {
         this.childrenTypes.add(child.getType());
         children.push(child);
@@ -131,7 +172,6 @@ export class ListData implements Data<any[]> {
       }
     }
     this.children = children;
-    console.log('constructred');
   }
 
   get(): any[] {
@@ -142,16 +182,24 @@ export class ListData implements Data<any[]> {
     return 'list';
   }
 
-  transformedWith<OutputType extends DataType>(tool: Tool<any[], OutputType>): Data<OutputType> {
-    const transformedData = tool.transform(this.get());
-    return DataBuilder.from(transformedData);
+  transformedWith<OutputType extends DataType>(tool: ToolWithTypePath<any[], OutputType>): Data<any> {
+     if (tool.typePath.length > 1) {
+       assert(tool.typePath[0] === 'list');
+       return this.childrenTransformedWith({
+        ...tool,
+        typePath: tool.typePath.slice(1),
+       });
+    } else {
+      const transformedData = tool.transform(this.get());
+      return DataBuilder.from(transformedData);
+    }
   }
 
-  childrenTransformedWith<InputType extends DataType, OutputType extends DataType>(tool: Tool<InputType, OutputType>): ListData {
+  childrenTransformedWith<InputType extends DataType, OutputType extends DataType>(tool: ToolWithTypePath<InputType, OutputType>): ListData {
     const transformFunction = (child: Data<any>): Data<any> | Data<OutputType> => {
-      if (tool.inputType === child.getType()) {
-        console.log()
-        return DataBuilder.from(tool.transform(child.get() as InputType));
+      if (tool.typePath[0] === child.getType()) {
+        return child.transformedWith(tool);
+        // return DataBuilder.from(tool.transform(child.get() as InputType));
       } else {
         return child;
       }
@@ -161,14 +209,39 @@ export class ListData implements Data<any[]> {
   }
 }
 
-// class JsonData<KeyTypes extends DataType[], ValueTypes extends DataType[]> extends Data<'json'> {
-//   keyTypes: DataType[];
-//   valueTypes: DataType[];
 
-//   constructor(data: ActualType<'json'>, childrenTypes: ChildrenTypes) {
-//     super(data, 'list');
-//     this.childrenTypes = childrenTypes;
-//   }
-// }
+export class JsonData implements Data<any> {
+  map: Map<UnitData<any>, Data<any>>;
 
-// const a: ListData;
+  constructor(json: any) {
+    assert(!Array.isArray(json));
+    const map = new Map();
+    // At this point, assume we have a valid json
+    for (var entry of Object.entries(json)) {
+      const [key, value] = entry;
+      map.set(DataBuilder.from(key) as UnitData<any>, DataBuilder.from(value));
+    }
+    this.map = map;
+  }
+
+  get(): any {
+    const entries = [];
+    const entryIterator = this.map.entries();
+    var entry = entryIterator.next();
+    while (!entry.done) {
+      const [keyData, valueData] = entry.value;
+      entries.push([keyData.get(), valueData.get()]);
+      entry = entryIterator.next();
+    }
+    return Object.fromEntries(entries);
+  }
+
+  getType(): TypeName<any> {
+    return 'json';
+  }
+
+  transformedWith<OutputType extends any>(tool: BaseTool<any, OutputType>): Data<OutputType> {
+    const transformedData = tool.transform(this.get());
+    return DataBuilder.from(transformedData);
+  }
+}
