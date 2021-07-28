@@ -1,7 +1,7 @@
 import React from 'react';
 import { Alert, Avatar, Box, Button, IconButton, ListItem, ListItemAvatar, ListItemText, MenuItem, Select, TextField, Typography } from "@material-ui/core";
 import { useState } from "react";
-import { hasParams, Tool, DataType, isMultipleChoiceParam, ToolParameter, ToolParameterType, ToolWithTypePath } from "../tools/types";
+import { hasParams, DataType, isMultipleChoiceParam, ToolParameter, ToolParameterType, ToolWithTypePath } from "../tools/types";
 import { Clear } from '@material-ui/icons';
 
 type ToolListItemProps<S extends DataType, T extends DataType> = {
