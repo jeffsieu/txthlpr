@@ -182,7 +182,7 @@ const App: React.FC = () => {
   // fullHistory.splice(currentStepIndex + 1, 0, fakeStep);
 
   const text: string = useMemo(() => {
-    if (currentData.getType() === 'json') {
+    if (currentData.getType() === 'json' || currentData.getType() === 'list') {
       if (useJson5) {
         return JSON5.stringify(currentData.get(), {quote: '"', space: 2});
       } else {
@@ -342,7 +342,7 @@ const App: React.FC = () => {
                     color="primary"
                   />
                 }
-                label="Use JSON5 formatting (for JSONs)"
+                label="Use JSON5 formatting (for JSONs and lists)"
               />
               <Box mt={4}>
                 <Typography variant="h6" color="text.secondary">
