@@ -181,7 +181,7 @@ const App: React.FC = () => {
   // if (fakeStep !== null)
   // fullHistory.splice(currentStepIndex + 1, 0, fakeStep);
 
-  const text = useMemo(() => {
+  const text: string = useMemo(() => {
     if (currentData.getType() === 'json') {
       if (useJson5) {
         return JSON5.stringify(currentData.get(), {quote: '"', space: 2});
@@ -189,7 +189,7 @@ const App: React.FC = () => {
         return JSON.stringify(currentData.get(), null, 2);
       }
     } else {
-      return currentData.get();
+      return currentData.get() + "";
     }
   }, [currentData, useJson5]);
 
