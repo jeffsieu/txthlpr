@@ -134,6 +134,7 @@ const App: React.FC = () => {
   >(undefined);
   const initialData = useMemo(() => DataBuilder.from(""), []);
   const [useJson5, setUseJson5] = useState(false);
+  const [stringifyListAsJson, setStringifyListAsJson] = useState(false);
   const [toolHistory, setToolHistory] = useState<ToolWithTypePath<any, any>[]>(
     []
   );
@@ -178,11 +179,11 @@ const App: React.FC = () => {
   );
   const fullHistory = [...toolHistory];
 
-  // if (fakeStep !== null)
-  // fullHistory.splice(currentStepIndex + 1, 0, fakeStep);
-
   const text: string = useMemo(() => {
     if (currentData.getType() === 'json' || currentData.getType() === 'list') {
+      if (currentData.getType() === 'list' && !stringifyListAsJson) {
+        return currentData.get().join(',\n');
+      }
       if (useJson5) {
         return JSON5.stringify(currentData.get(), {quote: '"', space: 2});
       } else {
@@ -191,7 +192,7 @@ const App: React.FC = () => {
     } else {
       return currentData.get() + "";
     }
-  }, [currentData, useJson5]);
+  }, [currentData, stringifyListAsJson, useJson5]);
 
   const wordCount = useMemo(() => text.trim().split(/\s+/).length, [text]);
 
@@ -232,10 +233,7 @@ const App: React.FC = () => {
   };
 
   const currentDataType = currentData.getType();
-  // const currentDataType = latestTool !== undefined ? (isElementWiseTool(latestTool) ? 'list' : latestTool.outputType) : 'string';
-
   const categorizedTools = getToolsForData(allTools, currentData);
-  
   const isLgDown = useMediaQuery(theme.breakpoints.down('lg'));
 
   return (
@@ -319,7 +317,6 @@ const App: React.FC = () => {
                   maxRows={30}
                   multiline
                 />
-              </form>
               <div>
                 <Typography
                   variant="overline"
@@ -338,11 +335,21 @@ const App: React.FC = () => {
                   <Checkbox
                     checked={useJson5}
                     onChange={() => setUseJson5(!useJson5)}
-                    name="checkedB"
                     color="primary"
                   />
                 }
                 label="Use JSON5 formatting (for JSONs and lists)"
+              />
+              </form>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={stringifyListAsJson}
+                    onChange={() => setStringifyListAsJson(!stringifyListAsJson)}
+                    color="primary"
+                  />
+                }
+                label="Display list as JSON"
               />
               <Box mt={4}>
                 <Typography variant="h6" color="text.secondary">

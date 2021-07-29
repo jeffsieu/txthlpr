@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Avatar, Box, Button, IconButton, ListItem, ListItemAvatar, ListItemText, MenuItem, Select, TextField, Typography } from "@material-ui/core";
+import { Alert, Avatar, Box, Button, FormControl, IconButton, InputLabel, ListItem, ListItemAvatar, ListItemText, MenuItem, Select, TextField, Typography } from "@material-ui/core";
 import { useState } from "react";
 import { hasParams, DataType, isMultipleChoiceParam, ToolParameter, ToolParameterType, ToolWithTypePath } from "../tools/types";
 import { Clear } from '@material-ui/icons';
@@ -13,7 +13,6 @@ type ToolListItemProps<S extends DataType, T extends DataType> = {
   onClick: () => void,
   onDelete: () => void,
 }
-
 const ToolListItem: React.FC<ToolListItemProps<any, any>> = (props) => {
   const { tool, updateTool, index, isFocused, isError, onClick, onDelete } = props;
   const [params, setParams] = useState(hasParams(tool) ? tool.params : undefined);
@@ -65,7 +64,9 @@ const ToolListItem: React.FC<ToolListItemProps<any, any>> = (props) => {
     {isError && <Alert severity="error">This doesn't work!</Alert>}
     {params &&
       <Box ml={2} mr={2}>
-        <Typography variant='overline'>Parameters</Typography>
+        <Box mb={1}>
+          <Typography variant='overline'>Parameters</Typography>
+        </Box>
         <form onSubmit={(event) => {
           event.preventDefault();
           return updateParams();
@@ -74,16 +75,23 @@ const ToolListItem: React.FC<ToolListItemProps<any, any>> = (props) => {
             const param = params[key];
 
             if (isMultipleChoiceParam(param)) {
-              return <Select
-                value={param.value}
-                onChange={(event) => {
-                  onParamChange(param, key, event.target.value);
-                }}
-              >
-                {param.choices.map((choice, index) => {
-                  return <MenuItem key={index} value={choice}>{choice}</MenuItem>
-                })}
-              </Select>
+              return <Box my={2}>
+                <FormControl>
+                  <InputLabel id={`${param.name}-label`}>{param.name}</InputLabel>
+                  <Select
+                    value={param.value}
+                    labelId={`${param.name}-label`}
+                    label={param.name}
+                    onChange={(event) => {
+                      onParamChange(param, key, event.target.value);
+                    }}
+                  >
+                    {param.choices.map((choice, index) => {
+                      return <MenuItem key={index} value={choice}>{choice}</MenuItem>
+                    })}
+                  </Select>
+                </FormControl>
+              </Box>
             } else {
               return <TextField
               fullWidth
