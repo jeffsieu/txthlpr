@@ -2,7 +2,7 @@
 
 [![Deploy to github pages](https://github.com/jeffsieu/txthlpr/actions/workflows/deploy.yml/badge.svg)](https://github.com/jeffsieu/txthlpr/actions/workflows/deploy.yml)
 
-[View here](https://jeffsieu.github.io/txthlpr/)
+[View here](https://txthlpr.jeffsieu.com/)
 
 ## Motivation
 
@@ -71,7 +71,8 @@ Now I can!
 3. Replace all occurrences of `" #"` with an empty string `""`
 4. Type in the last comma yourself. (Data is automatically converted back into a string whenever you type,)
 5. Copy out this result, and manually add in the braces as required.
-    ```
+
+    ```js
     base00: "1e1e3f",
     base01: "43d426",
     base02: "f1d000",
